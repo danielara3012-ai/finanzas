@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Control de Finanzas Personales</title>
+    <!-- Tailwind CSS para un diseño moderno y rápido -->
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-50 text-slate-800 font-sans min-h-screen flex flex-col">
+
+    <!-- Barra de Navegación -->
+    <header class="bg-indigo-600 text-white shadow-md p-4">
+        <div class="max-w-4xl mx-auto flex justify-between items-center">
+            <h1 class="text-xl font-bold tracking-tight">Gestor Financiero Pro</h1>
+            <span class="bg-indigo-700 text-xs font-semibold px-3 py-1 rounded-full border border-indigo-500">
+                Progreso Guardado Localmente
+            </span>
+        </div>
+    </header>
+
+    <!-- Contenido Principal -->
+    <main class="flex-1 p-4 max-w-4xl w-full mx-auto space-y-6">
+        
+        <!-- Panel de Control: Perfiles y Balance -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            
+            <!-- Selector de Perfiles -->
+            <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200">
+                <label for="profile-selector" class="block text-xs font-bold uppercase text-slate-400 mb-2 tracking-wider">
+                    Perfil Activo
+                </label>
+                <select id="profile-selector" class="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none font-medium">
+                    <option value="Personal">Personal Pilar🏠</option>
+                    <option value="Trabajo">Mami Elsa💼</option>
+                    <option value="Ahorros">Daniel Ahorro🎯</option>
+                    <option value="Gastos">Plata Tintas🛒</option>
+                </select>
+            </div>
+
+            <!-- Total Dinero (Balance del perfil actual) -->
+            <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200 md:col-span-2 flex flex-col justify-center">
+                <p class="text-xs font-bold uppercase text-slate-400 tracking-wider">Total Disponible en este Perfil</p>
+                <p id="total-balance" class="text-3xl font-black mt-1 text-emerald-600">S/ 0.00</p>
+            </div>
+        </div>
+
+        <!-- Formulario para agregar movimientos -->
+        <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+            <h3 class="text-lg font-bold mb-4 text-slate-700">Registrar Nuevo Movimiento</h3>
+            
+            <form id="finance-form" class="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+                <div>
+                    <label class="block text-xs font-bold uppercase text-slate-400 mb-1 tracking-wider">Descripción</label>
+                    <input type="text" id="tx-desc" placeholder="Ej. Sueldo, Almuerzo, Mercado" class="w-full p-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none" required>
+                </div>
+                
+                <div>
+                    <label class="block text-xs font-bold uppercase text-slate-400 mb-1 tracking-wider">Monto (S/)</label>
+                    <input type="number" step="0.01" min="0.01" id="tx-amount" placeholder="0.00" class="w-full p-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none" required>
+                </div>
+                
+                <div>
+                    <label class="block text-xs font-bold uppercase text-slate-400 mb-1 tracking-wider">Tipo de Movimiento</label>
+                    <select id="tx-type" class="w-full p-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                        <option value="ingreso">Ingreso (+)</option>
+                        <option value="gasto">Gasto (-)</option>
+                    </select>
+                </div>
+                
+                <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg transition duration-200 shadow-sm">
+                    Agregar
+                </button>
+            </form>
+        </div>
+
+        <!-- Historial de Transacciones -->
+        <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+            <h3 class="text-lg font-bold mb-4 text-slate-700">Historial de Movimientos</h3>
+            
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr class="border-b border-slate-100 text-xs font-bold uppercase text-slate-400 tracking-wider">
+                            <th class="pb-3">Descripción</th>
+                            <th class="pb-3">Tipo</th>
+                            <th class="pb-3 text-right">Monto</th>
+                            <th class="pb-3 text-center">Acción</th>
+                        </tr>
+                    </thead>
+                    <tbody id="transactions-list">
+                        <!-- Las filas se agregarán aquí dinámicamente con JS -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- LÓGICA EN JAVASCRIPT -->
+    <script>
+        // Arreglo principal para almacenar los movimientos
+        let transactions = JSON.parse(localStorage.getItem('wallet_transactions')) || [];
+        
+        // Elementos del DOM
+        const profileSelector = document.getElementById('profile-selector');
+        const financeForm = document.getElementById('finance-form');
+        const totalBalance = document.getElementById('total-balance');
+        const transactionsList = document.getElementById('transactions-list');
+
+        // Renderizar la información al cargar la página o cambiar de perfil
+        function render() {
+            const activeProfile = profileSelector.value;
+            
+            // Filtrar movimientos por el perfil seleccionado
+            const filteredTransactions = transactions.filter(tx => tx.profile === activeProfile);
+            
+            let listHtml = '';
+            let balance = 0;
+
+            filteredTransactions.forEach(tx => {
+                const isIngreso = tx.type === 'ingreso';
+                
+                // Calcular balance
+                if (isIngreso) {
+                    balance += tx.amount;
+                } else {
+                    balance -= tx.amount;
+                }
+
+                // Generar filas de la tabla
+                listHtml += `
+                    <tr class="border-b border-slate-100 text-sm hover:bg-slate-50 transition">
+                        <td class="py-3 font-medium text-slate-800">${tx.description}</td>
+                        <td class="py-3">
+                            <span class="px-2 py-0.5 rounded-full text-xs font-semibold ${isIngreso ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}">
+                                ${tx.type.toUpperCase()}
+                            </span>
+                        </td>
+                        <td class="py-3 text-right font-bold ${isIngreso ? 'text-emerald-600' : 'text-rose-600'}">
+                            ${isIngreso ? '+' : '-'} S/ ${tx.amount.toFixed(2)}
+                        </td>
+                        <td class="py-3 text-center">
+                            <button onclick="deleteTransaction(${tx.id})" class="text-rose-500 hover:text-rose-700 font-medium text-xs bg-rose-50 hover:bg-rose-100 px-2 py-1 rounded transition">
+                                Eliminar
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            });
+
+            // Actualizar tabla en el HTML
+            transactionsList.innerHTML = listHtml || `<tr><td colspan="4" class="text-center py-6 text-slate-400 text-sm">No hay movimientos registrados en este perfil.</td></tr>`;
+            
+            // Actualizar balance total y cambiar color si es negativo
+            totalBalance.textContent = `S/ ${balance.toFixed(2)}`;
+            if (balance < 0) {
+                totalBalance.className = "text-3xl font-black mt-1 text-rose-600";
+            } else {
+                totalBalance.className = "text-3xl font-black mt-1 text-emerald-600";
+            }
+        }
+
+        // Evento para capturar el envío del formulario
+        financeForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+
+            const description = document.getElementById('tx-desc').value.trim();
+            const amount = parseFloat(document.getElementById('tx-amount').value);
+            const type = document.getElementById('tx-type').value;
+            const profile = profileSelector.value;
+
+            // Objeto del nuevo movimiento
+            const newTransaction = {
+                id: Date.now(), // ID único basado en el tiempo
+                profile,
+                description,
+                amount,
+                type
+            };
+
+            // Guardar en el arreglo, actualizar localStorage y renderizar
+            transactions.push(newTransaction);
+            localStorage.setItem('wallet_transactions', JSON.stringify(transactions));
+            
+            financeForm.reset();
+            render();
+        });
+
+        // Función para eliminar un movimiento
+        function deleteTransaction(id) {
+            transactions = transactions.filter(tx => tx.id !== id);
+            localStorage.setItem('wallet_transactions', JSON.stringify(transactions));
+            render();
+        }
+
+        // Escuchar cuando se cambia de perfil
+        profileSelector.addEventListener('change', render);
+
+        // Carga inicial al abrir la página
+        render();
+    </script>
+</body>
+</html>
